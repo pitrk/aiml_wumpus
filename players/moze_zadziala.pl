@@ -273,7 +273,7 @@ dfs_call(Action, Knowledge) :- % if unsafe on this position
         shortestPathToExit(NewShortestPathToExit)
     ].
 
-dfs_call(Action, Knowledge) :- % if safe on this position and there are not discovered neighbours
+dfs_call(Action, Knowledge) :- % if safe on this position and there are not discovered neighboursNotDiscoveredNeighbours
     sizeOfWorld(MaxX, MaxY),
     agentPosition(X, Y, O),
     goldAmount(GoldAmount),
@@ -288,7 +288,7 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are not disc
     %not(breeze), not(stench),
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
     NewSafePositions = [ListOfRoomsAround | SafePositions],
-    get_all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
+    all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
     length(NotDiscoveredNeighbours, Len), Len > 0, % !!! If there are not discovered neighbours
     TemporaryDfsStack = [NotDiscoveredNeighbours | DfsStack],
     TemporaryDfsStack = [First | NewDfsStack],
@@ -330,10 +330,10 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are no not d
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
 
-    not(breeze), not(stench),
+    %not(breeze), not(stench),
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
     NewSafePositions = [ListOfRoomsAround | SafePositions],
-    get_all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
+    all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
     length(NotDiscoveredNeighbours, Len), Len == 0, % no not yet discovered neighbours - go back, nothing to do here
     NewDiscoveredList = [[[X, Y]] | DiscoveredList], % at least save that we've been here
     ShortestPathToExit = [_| NewShortestPathToExit], % remove this position from the shortest path list
@@ -514,12 +514,19 @@ update_position_after_action(X, Y, east, turnLeft, X, Y, north).
 update_position_after_action(X, Y, south, turnLeft, X, Y, east).
 update_position_after_action(X, Y, west, turnLeft, X, Y, south).
 
-%get_all_not_discovered_neighbours(AccessibleRooms, DiscoveredList, NotDiscoveredNeighbours).
-get_all_not_discovered_neighbours([], _, []).
-get_all_not_discovered_neighbours([First | Tail], DiscoveredList, NotDiscoveredNeighbours) :-
+%all_not_discovered_neighbours(AccessibleRooms, DiscoveredList, NotDiscoveredNeighbours).
+all_not_discovered_neighbours([], _, []).
+all_not_discovered_neighbours([First | Tail], DiscoveredList, NotDiscoveredNeighbours) :-
     (
         (member(First, DiscoveredList), TemporaryNotDiscoveredHere = []);
-        (not(member(First, DiscoveredList)), TemporaryNotDiscoveredHere = [First])
+        (not(member(First, DiscoveredList)), TemporaryNotDiscoveredHere = First)
     ),
-    get_all_not_discovered_neighbours(Tail, DiscoveredList, TemporaryNotDiscoveredRecursively),
-    NotDiscoveredNeighbours = [TemporaryNotDiscoveredHere | TemporaryNotDiscoveredRecursively].
+    all_not_discovered_neighbours(Tail, DiscoveredList, TemporaryNotDiscoveredRecursively),
+    NotDiscoveredNeighbours2 = [TemporaryNotDiscoveredHere | TemporaryNotDiscoveredRecursively],
+    del_member([], NotDiscoveredNeighbours2, NotDiscoveredNeighbours).
+
+% source: https://stackoverflow.com/a/12175901/8168925
+%del_member(ElementToRemove, ListToRemoveFrom, CleanedList)
+del_member(X, [], []) :- !.
+del_member(X, [X|Xs], Y) :- !, del_member(X, Xs, Y).
+del_member(X, [T|Xs], Y) :- !, del_member(X, Xs, Y2), append([T], Y2, Y).
