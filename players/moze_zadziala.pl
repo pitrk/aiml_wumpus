@@ -17,6 +17,7 @@ act(Action, Knowledge) :-
     assert(unsafePositions([])),
     assert(safePositions([[1,1]])),
     assert(shortestPathToExit([[1,1]])),
+    assert(resign(0)),
 
     act(Action, Knowledge).
 
@@ -27,7 +28,6 @@ act(Action, Knowledge) :- grab_gold(Action, Knowledge).
 act(Action, Knowledge) :- navigation(Action, Knowledge).
 act(Action, Knowledge) :- backtracking(Action, Knowledge).
 act(Action, Knowledge) :- dfs_call(Action, Knowledge).
-%debug
 act(Action, Knowledge) :- generic_nothing(Action, Knowledge).
 
 exit_if_danger_on_1_1(Action, Knowledge) :-
@@ -41,6 +41,7 @@ exit_if_danger_on_1_1(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     AgentPositionX = 1, AgentPositionY = 1,
     (stench;breeze),
@@ -62,7 +63,8 @@ exit_if_danger_on_1_1(Action, Knowledge) :-
         dfsStack(DfsStack),
         unsafePositions(NewUnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(ShortestPathToExit)
+        shortestPathToExit(ShortestPathToExit),
+        resign(Resign)
     ].
 
 exit_if_has_gold(Action, Knowledge) :-
@@ -76,6 +78,7 @@ exit_if_has_gold(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     AgentPositionX = 1, AgentPositionY = 1,
     GoldAmount > 0,
@@ -94,7 +97,8 @@ exit_if_has_gold(Action, Knowledge) :-
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(ShortestPathToExit)
+        shortestPathToExit(ShortestPathToExit),
+        resign(Resign)
     ].
 
 fake_gold_after_200_moves(Action, Knowledge) :-
@@ -108,13 +112,15 @@ fake_gold_after_200_moves(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     ExecutedMoves > 200,
     Action = grab,
+    Resign < 1,
+    NewResign is Resign + 1,
     NewGoldAmount is GoldAmount + 1,
     NewExecutedMoves is ExecutedMoves + 1,
-    % we need to shorten the shortest path list by this position
-    NewShortestPathToExit = [_ | ShortestPathToExit],
+    ShortestPathToExit = [_ | NewShortestPathToExit],
 
     Knowledge = [
         called_fake_grab_gold,
@@ -128,7 +134,8 @@ fake_gold_after_200_moves(Action, Knowledge) :-
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(NewShortestPathToExit)
+        shortestPathToExit(NewShortestPathToExit),
+        resign(NewResign)
     ].
 
 grab_gold(Action, Knowledge) :-
@@ -142,12 +149,12 @@ grab_gold(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     glitter,
     Action = grab,
     NewGoldAmount is GoldAmount + 1,
     NewExecutedMoves is ExecutedMoves + 1,
-    % we need to shorten the shortest path list by this position
     ShortestPathToExit = [_ | NewShortestPathToExit],
 
     Knowledge = [
@@ -162,10 +169,11 @@ grab_gold(Action, Knowledge) :-
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(NewShortestPathToExit)
+        shortestPathToExit(NewShortestPathToExit),
+        resign(Resign)
     ].
 
-navigation(Action, Knowledge) :- % if there is something in navigationList
+navigation(Action, Knowledge) :- % if there is something in navigationList, but we backtrack out of danger
     sizeOfWorld(MaxX, MaxY),
     agentPosition(X, Y, O),
     goldAmount(GoldAmount),
@@ -176,6 +184,7 @@ navigation(Action, Knowledge) :- % if there is something in navigationList
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     backtrack_a_little,
     length(NavigationList, Len), Len > 0,
@@ -198,7 +207,8 @@ navigation(Action, Knowledge) :- % if there is something in navigationList
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(ShortestPathToExit)
+        shortestPathToExit(ShortestPathToExit),
+        resign(Resign)
     ].
 
 navigation(Action, Knowledge) :- % if there is something in navigationList
@@ -212,6 +222,7 @@ navigation(Action, Knowledge) :- % if there is something in navigationList
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     length(NavigationList, Len), Len > 0,
     NavigationList = [FirstAction | NewNavigationList],
@@ -242,7 +253,8 @@ navigation(Action, Knowledge) :- % if there is something in navigationList
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(NewShortestPathToExit)
+        shortestPathToExit(NewShortestPathToExit),
+        resign(Resign)
     ].
 
 backtracking(Action, Knowledge) :-
@@ -256,13 +268,14 @@ backtracking(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
-    GoldAmount > 0, % if we have gold
+    GoldAmount > 0,
     ShortestPathToExit = [[PreviousPositionX, PreviousPositionY] | NewShortestPathToExit],
     procedure(X, Y, O, PreviousPositionX, PreviousPositionY, NavigationProcedures),
-    append(NavigationProcedures, NavigationList, TemporaryNavigationList), %add new nav procedures
-    TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
-    Action = FirstAction, % first nav procedure execute
+    append(NavigationProcedures, NavigationList, TemporaryNavigationList),
+    TemporaryNavigationList = [FirstAction | NewNavigationList],
+    Action = FirstAction,
     update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
     NewExecutedMoves is ExecutedMoves + 1,
 
@@ -280,10 +293,7 @@ backtracking(Action, Knowledge) :-
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
         shortestPathToExit(NewShortestPathToExit),
-        debug,
-        action(Action),
-        navproc(NavigationProcedures),
-        prevpos(PreviousPositionX, PreviousPositionY)
+        resign(Resign)
     ].
 
 dfs_call(Action, Knowledge) :- % if unsafe on this position
@@ -297,19 +307,19 @@ dfs_call(Action, Knowledge) :- % if unsafe on this position
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
-    (breeze;stench), %if unsafe
-    append(ListOfRoomsAround, UnsafePositions, NewUnsafePositions),% mark all accessible neighbours unsafe (they are ok if they are on discoveredList)
-    ShortestPathToExit = [_| NewShortestPathToExit], % remove this position from the shortest path list
-    NewShortestPathToExit = [[PreviousPositionX, PreviousPositionY] | _], % get last position from the shortest path to backtrack to it
-    procedure(X, Y, O, PreviousPositionX, PreviousPositionY, NavigationProcedures), % calculate moves to go there (it should be our neighbour)
-    append(NavigationProcedures, NavigationList, TemporaryNavigationList),%add new nav procedures
-    TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
-    Action = FirstAction, % first nav procedure execute
+    (breeze;stench),
+    append(ListOfRoomsAround, UnsafePositions, NewUnsafePositions),
+    ShortestPathToExit = [_| NewShortestPathToExit],
+    NewShortestPathToExit = [[PreviousPositionX, PreviousPositionY] | _],
+    procedure(X, Y, O, PreviousPositionX, PreviousPositionY, NavigationProcedures),
+    append(NavigationProcedures, NavigationList, TemporaryNavigationList),
+    TemporaryNavigationList = [FirstAction | NewNavigationList],
+    Action = FirstAction,
     update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
     NewExecutedMoves is ExecutedMoves + 1,
-    %Action = grab,
     Knowledge = [
         called_dfs_call_unsafe_here,
         gameStarted,
@@ -323,7 +333,8 @@ dfs_call(Action, Knowledge) :- % if unsafe on this position
         dfsStack(DfsStack),
         unsafePositions(NewUnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(NewShortestPathToExit)
+        shortestPathToExit(NewShortestPathToExit),
+        resign(Resign)
     ].
 
 dfs_call(Action, Knowledge) :- % if safe on this position and there are not discovered neighboursNotDiscoveredNeighbours
@@ -337,23 +348,23 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are not disc
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     not(breeze), not(stench),
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
     append(ListOfRoomsAround, SafePositions, NewSafePositions),
     all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
-    length(NotDiscoveredNeighbours, Len), Len > 0, % !!! If there are not discovered neighbours
+    length(NotDiscoveredNeighbours, Len), Len > 0,
     append(NotDiscoveredNeighbours, DfsStack, TemporaryDfsStack),
     TemporaryDfsStack = [[GotoX, GotoY] | NewDfsStack],
     NewDiscoveredList = [[GotoX, GotoY] | DiscoveredList],
     procedure(X, Y, O, GotoX, GotoY, NavigationProcedures),
     append(NavigationProcedures, NavigationList, TemporaryNavigationList),
-    TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
+    TemporaryNavigationList = [FirstAction | NewNavigationList],
 
-    Action = FirstAction, % first nav procedure execute
+    Action = FirstAction,
     update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
     NewExecutedMoves is ExecutedMoves + 1,
-    %append([[NewX, NewY]], ShortestPathToExit, NewShortestPathToExit),
     ensure([NewX, NewY], ShortestPathToExit, NewShortestPathToExit),
 
     Knowledge = [
@@ -369,15 +380,7 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are not disc
         unsafePositions(UnsafePositions),
         safePositions(NewSafePositions),
         shortestPathToExit(NewShortestPathToExit),
-        listofroomsaround(ListOfRoomsAround),
-        notdiscoveredneighbours(NotDiscoveredNeighbours),
-        %notdiscoveredneighbours2(NotDiscoveredNeighbours2),
-        newsafepositions(NewSafePositions),
-        leng(Len),
-        temdefstack(TemporaryDfsStack),
-        first(GotoX, GotoY),
-        navproc(NavigationProcedures),
-        xyo(X, Y, O, GotoX, GotoY)
+        resign(Resign)
     ].
 
 dfs_call(Action, Knowledge) :- % if safe on this position and there are no not discovered neighbours
@@ -391,19 +394,20 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are no not d
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     not(breeze), not(stench),
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
     append(ListOfRoomsAround, SafePositions, NewSafePositions),
     all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
-    length(NotDiscoveredNeighbours, Len), Len == 0, % no not yet discovered neighbours - go back, nothing to do here
-    NewDiscoveredList = [[X, Y] | DiscoveredList],% at least save that we've been here
-    ShortestPathToExit = [_| NewShortestPathToExit], % remove this position from the shortest path list
-    NewShortestPathToExit = [[PreviousPositionX, PreviousPositionY] | _], % get last position from the shortest path to backtrack to it
-    procedure(X, Y, O, PreviousPositionX, PreviousPositionY, NavigationProcedures), % calculate moves to go there (it should be our neighbour)
-    append(NavigationProcedures, NavigationList, TemporaryNavigationList), %add new nav procedures
-    TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
-    Action = FirstAction, % first nav procedure execute
+    length(NotDiscoveredNeighbours, Len), Len == 0,
+    NewDiscoveredList = [[X, Y] | DiscoveredList],
+    ShortestPathToExit = [_| NewShortestPathToExit],
+    NewShortestPathToExit = [[PreviousPositionX, PreviousPositionY] | _],
+    procedure(X, Y, O, PreviousPositionX, PreviousPositionY, NavigationProcedures),
+    append(NavigationProcedures, NavigationList, TemporaryNavigationList),
+    TemporaryNavigationList = [FirstAction | NewNavigationList],
+    Action = FirstAction,
     update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
     NewExecutedMoves is ExecutedMoves + 1,
 
@@ -420,8 +424,7 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are no not d
         unsafePositions(UnsafePositions),
         safePositions(NewSafePositions),
         shortestPathToExit(NewShortestPathToExit),
-        debug,
-        notdiscoveredneighbours(NotDiscoveredNeighbours)
+        resign(Resign)
     ].
 
 generic_nothing(Action, Knowledge) :-
@@ -435,6 +438,7 @@ generic_nothing(Action, Knowledge) :-
     unsafePositions(UnsafePositions),
     safePositions(SafePositions),
     shortestPathToExit(ShortestPathToExit),
+    resign(Resign),
 
     Action = exit,
     NewExecutedMoves is ExecutedMoves + 1,
@@ -450,7 +454,8 @@ generic_nothing(Action, Knowledge) :-
         dfsStack(DfsStack),
         unsafePositions(UnsafePositions),
         safePositions(SafePositions),
-        shortestPathToExit(ShortestPathToExit)
+        shortestPathToExit(ShortestPathToExit),
+        resign(Resign)
     ].
 
 
@@ -589,10 +594,12 @@ all_not_discovered_neighbours([First | Tail], DiscoveredList, NotDiscoveredNeigh
     NotDiscoveredNeighbours2 = [TemporaryNotDiscoveredHere | TemporaryNotDiscoveredRecursively],
     delMember([], NotDiscoveredNeighbours2, NotDiscoveredNeighbours).
 
+% source: https://stackoverflow.com/q/12175377/8168925
 delMember(X, [], []) :- !.
 delMember(X, [X|Xs], Y) :- !, delMember(X, Xs, Y).
 delMember(X, [T|Xs], Y) :- !, delMember(X, Xs, Y2), append([T], Y2, Y).
 
+%source: https://stackoverflow.com/a/37327279/8168925
 ensure(X, L, L) :-
     member(X, L), !.
 ensure(X, L, [X | L]).
