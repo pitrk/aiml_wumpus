@@ -6,7 +6,7 @@ act(Action, Knowledge) :-
 
 	worldSize(X, Y),
     assert(sizeOfWorld(X, Y)),
-    assert(agentPosition(1, 1, facingEast)),
+    assert(agentPosition(1, 1, east)),
     assert(goldAmount(0)),
     assert(executedMoves(0)),
 
@@ -287,35 +287,44 @@ dfs_call(Action, Knowledge) :- % if safe on this position and there are not disc
 
     %not(breeze), not(stench),
     accessible_rooms_around(X, Y, MaxX, MaxY, ListOfRoomsAround),
-    NewSafePositions = [ListOfRoomsAround | SafePositions],
+    append(ListOfRoomsAround, SafePositions, NewSafePositions),
     all_not_discovered_neighbours(ListOfRoomsAround, DiscoveredList, NotDiscoveredNeighbours),
     length(NotDiscoveredNeighbours, Len), Len > 0, % !!! If there are not discovered neighbours
-    TemporaryDfsStack = [NotDiscoveredNeighbours | DfsStack],
-    TemporaryDfsStack = [First | NewDfsStack],
-    NewDiscoveredList = [First | DiscoveredList],
-    First = [GotoX | GotoY],
+    append(NotDiscoveredNeighbours, DfsStack, TemporaryDfsStack),
+    TemporaryDfsStack = [[GotoX, GotoY] | NewDfsStack],
+    NewDiscoveredList = [[GotoX, GotoY] | DiscoveredList],
     procedure(X, Y, O, GotoX, GotoY, NavigationProcedures),
-    TemporaryNavigationList = [NavigationProcedures | NavigationList], %add new nav procedures
-    TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
+    %append(NavigationProcedures, NavigationList, TemporaryNavigationList),
+    %TemporaryNavigationList = [NavigationProcedures | NavigationList], %add new nav procedures
+    %TemporaryNavigationList = [FirstAction | NewNavigationList], % remove first nav procedure
 
-    Action = FirstAction, % first nav procedure execute
-    update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
-    NewExecutedMoves is ExecutedMoves + 1,
-    NewShortestPathToExit = [[[NewX, NewY]] | ShortestPathToExit ],
-
+    %Action = FirstAction, % first nav procedure execute
+    %update_position_after_action(X, Y, O, FirstAction, NewX, NewY, NewO),
+    %NewExecutedMoves is ExecutedMoves + 1,
+    %NewShortestPathToExit = [[[NewX, NewY]] | ShortestPathToExit ],
+    Action = grab,
     Knowledge = [
         called_dfs_call_safe_and_something_to_explore,
         gameStarted,
         sizeOfWorld(MaxX, MaxY),
-        agentPosition(NewX, NewY, NewO),
+        %agentPosition(NewX, NewY, NewO),
         goldAmount(GoldAmount),
-        executedMoves(NewExecutedMoves),
-        navigationList(NewNavigationList),
-        discoveredList(NewDiscoveredList),
-        dfsStack(NewDfsStack),
-        unsafePositions(UnsafePositions),
-        safePositions(NewSafePositions),
-        shortestPathToExit(NewShortestPathToExit)
+        %executedMoves(NewExecutedMoves),
+        %navigationList(NewNavigationList),
+        %discoveredList(NewDiscoveredList),
+        %dfsStack(NewDfsStack),
+        %unsafePositions(UnsafePositions),
+        %safePositions(NewSafePositions),
+        %shortestPathToExit(NewShortestPathToExit)
+        listofroomsaround(ListOfRoomsAround),
+        notdiscoveredneighbours(NotDiscoveredNeighbours),
+        %notdiscoveredneighbours2(NotDiscoveredNeighbours2),
+        newsafepositions(NewSafePositions),
+        leng(Len),
+        temdefstack(TemporaryDfsStack),
+        first(GotoX, GotoY),
+        navproc(NavigationProcedures),
+        xyo(X, Y, O, GotoX, GotoY)
     ].
 
 dfs_call(Action, Knowledge) :- % if safe on this position and there are no not discovered neighbours
@@ -478,27 +487,28 @@ remove_n_elements_in_front(ListToShorten, N, ShortedList) :-
     NewN is N - 1,
     remove_n_elements_in_front(Shorter, NewN, ShortedList).
 
-procedure(X, Y, north, X,   Y+1, [moveForward]).
-procedure(X, Y, east,  X+1, Y,   [moveForward]).
-procedure(X, Y, south, X,   Y-1, [moveForward]).
-procedure(X, Y, west,  X-1, Y,   [moveForward]).
+procedure(X, Y, north, X,    NewY, ActionList) :- NewY is (Y+1), ActionList = [moveForward].
+procedure(X, Y, east,  NewX, Y,    ActionList) :- NewX is (X+1), ActionList = [moveForward].
+procedure(X, Y, south, X,    NewY, ActionList) :- NewY is (Y-1), ActionList = [moveForward].
+procedure(X, Y, west,  NewX, Y,    ActionList) +- NewX is (X-1), ActionList = [moveForward].
 
-procedure(X, Y, north, X-1, Y,   [turnLeft, moveForward]).
-procedure(X, Y, east,  X,   Y+1, [turnLeft, moveForward]).
-procedure(X, Y, south, X+1, Y,   [turnLeft, moveForward]).
-procedure(X, Y, west,  X,   Y-1, [turnLeft, moveForward]).
+procedure(X, Y, north, NewX, Y,    ActionList) :- NewX is (X-1), ActionList = [turnLeft, moveForward].
+procedure(X, Y, east,  X,    NewY, ActionList) :- NewY is (Y+1), ActionList = [turnLeft, moveForward].
+procedure(X, Y, south, NewX, Y,    ActionList) :- NewX is (X+1), ActionList = [turnLeft, moveForward].
+procedure(X, Y, west,  X,    NewY, ActionList) :- NewY is (Y-1), ActionList = [turnLeft, moveForward].
 
-procedure(X, Y, north, X+1, Y,   [turnRight, moveForward]).
-procedure(X, Y, east,  X,   Y-1, [turnRight, moveForward]).
-procedure(X, Y, south, X-1, Y,   [turnRight, moveForward]).
-procedure(X, Y, west,  X,   Y+1, [turnRight, moveForward]).
+procedure(X, Y, north, NewX, Y,    ActionList) :- NewX is (X+1), ActionList = [turnRight, moveForward].
+procedure(X, Y, east,  X,    NewY, ActionList) :- NewY is (Y-1), ActionList = [turnRight, moveForward].
+procedure(X, Y, south, NewX, Y,    ActionList) :- NewX is (X-1), ActionList = [turnRight, moveForward].
+procedure(X, Y, west,  X,    NewY, ActionList) :- NewY is (Y+1), ActionList = [turnRight, moveForward].
 
-procedure(X, Y, north, X,   Y-1, [turnRight, turnRight, moveForward]).
-procedure(X, Y, east,  X-1, Y,   [turnRight, turnRight, moveForward]).
-procedure(X, Y, south, X,   Y+1, [turnRight, turnRight, moveForward]).
-procedure(X, Y, west,  X+1, Y,   [turnRight, turnRight, moveForward]).
+procedure(X, Y, north, X,    NewY, ActionList) :- NewY is (Y-1), ActionList = [turnRight, turnRight, moveForward].
+procedure(X, Y, east,  NewX, Y,    ActionList) :- NewX is (X-1), ActionList = [turnRight, turnRight, moveForward].
+procedure(X, Y, south, X,    NewY, ActionList) :- NewY is (Y+1), ActionList = [turnRight, turnRight, moveForward].
+procedure(X, Y, west,  NewX, Y,    ActionList) :- NewX is (X+1), ActionList = [turnRight, turnRight, moveForward].
 
 % update_position_after_action(CurrentX, CurrentY, CurrentO, Action, NewX, NewY, NewO)
+% TODO: Poprawić jak te powyżej
 update_position_after_action(X, Y, north, moveForward, X, Y+1, north).
 update_position_after_action(X, Y, east, moveForward, X+1, Y, east).
 update_position_after_action(X, Y, south, moveForward, X, Y-1, south).
@@ -523,10 +533,8 @@ all_not_discovered_neighbours([First | Tail], DiscoveredList, NotDiscoveredNeigh
     ),
     all_not_discovered_neighbours(Tail, DiscoveredList, TemporaryNotDiscoveredRecursively),
     NotDiscoveredNeighbours2 = [TemporaryNotDiscoveredHere | TemporaryNotDiscoveredRecursively],
-    del_member([], NotDiscoveredNeighbours2, NotDiscoveredNeighbours).
+    delMember([], NotDiscoveredNeighbours2, NotDiscoveredNeighbours).
 
-% source: https://stackoverflow.com/a/12175901/8168925
-%del_member(ElementToRemove, ListToRemoveFrom, CleanedList)
-del_member(X, [], []) :- !.
-del_member(X, [X|Xs], Y) :- !, del_member(X, Xs, Y).
-del_member(X, [T|Xs], Y) :- !, del_member(X, Xs, Y2), append([T], Y2, Y).
+delMember(X, [], []) :- !.
+delMember(X, [X|Xs], Y) :- !, delMember(X, Xs, Y).
+delMember(X, [T|Xs], Y) :- !, delMember(X, Xs, Y2), append([T], Y2, Y).

@@ -3,7 +3,7 @@
 act(Action, Knowledge) :- execute(Action, Knowledge).
 
 execute(Action, Knowledge) :-
-    get_all_not_discovered_neighbours([[1,2],[2,1],[1,1],[1,4]], [[1,2], [1,1]], X), % X = [[2,1],[1,4]]
+    get_all_not_discovered_neighbours([[1,2],[2,1]], [[1,1]], X), % X = [[1,2],[2,1]]
     Action = exit,
     Knowledge = [
         x(X)
